@@ -189,6 +189,10 @@ type RangeRecord struct {
 func TestScan(t *testing.T) {
 	_, _ = cli.DeleteTable(&DeleteTableRequest{TableName: "test_range_table"})
 	EnsureTable(cli, &RangeRecord{})
+	// we only want 5, it will get ErrRangeEnd, because it has no rows
+	rows := Range(cli, RangeRecord{}, []interface{}{MIN, MIN}, []interface{}{MAX, MAX}, FORWARD, 5)
+	require.True(t, errors.Is(rows.Scan(&RangeRecord{}), ErrRangeEnd))
+
 	for i := 0; i < 123; i++ {
 		err := PutRow(cli, &RangeRecord{Pk: 1, Content: fmt.Sprintf("%d", i+1)})
 		require.NoError(t, err)
@@ -196,7 +200,7 @@ func TestScan(t *testing.T) {
 
 	// we only want 5, it will get 5
 	count := 0
-	rows := Range(cli, RangeRecord{}, []interface{}{1, MIN}, []interface{}{1, MAX}, FORWARD, 5)
+	rows = Range(cli, RangeRecord{}, []interface{}{1, MIN}, []interface{}{1, MAX}, FORWARD, 5)
 	for {
 		r := &RangeRecord{}
 		err := rows.Scan(r)
@@ -206,8 +210,6 @@ func TestScan(t *testing.T) {
 		}
 		require.NoError(t, err)
 		count++
-		t.Log(r)
-		t.Logf("count: %d", count)
 	}
 	require.EqualValues(t, 5, count)
 
@@ -223,8 +225,6 @@ func TestScan(t *testing.T) {
 		}
 		require.NoError(t, err)
 		count++
-		//t.Log(r)
-		//t.Logf("count: %d", count)
 	}
 	require.EqualValues(t, 100, count)
 
